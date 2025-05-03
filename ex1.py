@@ -223,6 +223,7 @@ def main():
             per_device_train_batch_size=args.batch_size,
             per_device_eval_batch_size=args.batch_size,
             # --- Evaluation and Saving Strategy ---
+            do_eval=True,
             eval_steps=num_update_steps_per_epoch, # Evaluate every epoch
             save_steps=num_update_steps_per_epoch, # Save checkpoint every epoch
             load_best_model_at_end=True,        # Load the best model found during training
