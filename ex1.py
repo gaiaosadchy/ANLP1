@@ -217,33 +217,28 @@ def main():
 
         # Training arguments
         training_args = TrainingArguments(
-            output_dir=os.path.join(args.output_dir, run_name), # Unique output dir per run
-            num_train_epochs=args.num_train_epochs,
-            learning_rate=args.lr,
-            per_device_train_batch_size=args.batch_size,
-            per_device_eval_batch_size=args.batch_size,
-            # --- Evaluation and Saving Strategy ---
-            # do_eval=True,
-            # eval_steps=num_update_steps_per_epoch, # Evaluate every epoch
-            # save_steps=num_update_steps_per_epoch, # Save checkpoint every epoch
-            # logging_steps=num_update_steps_per_epoch,
-            evaluation_strategy="epoch",
-            save_strategy="epoch",
-            load_best_model_at_end=True,        # Load the best model found during training
-            metric_for_best_model="accuracy",   # Metric to determine the best model
-            greater_is_better=True,             # Accuracy should be maximized
-            save_total_limit=1,                 # Only keep the best checkpoint
-            # --- Logging ---
-            # logging_strategy="steps",
-            # logging_steps=50,            # Log metrics every 50 steps
-            logging_strategy="epoch",
-            report_to="wandb",           # Report metrics to W&B
-            # --- Other ---
-            # seed=args.seed,
-            fp16=torch.cuda.is_available(), # Use mixed precision if GPU available
-            push_to_hub=False,           # Do not push to Hugging Face Hub
-            disable_tqdm=False,          # Show progress bars
-        )
+             output_dir=os.path.join(args.output_dir, run_name), # Unique output dir per run
+             num_train_epochs=args.num_train_epochs,
+             learning_rate=args.lr,
+             per_device_train_batch_size=args.batch_size,
+             per_device_eval_batch_size=args.batch_size,
+             # --- Evaluation and Saving Strategy ---
+             evaluation_strategy="epoch", # Evaluate at the end of each epoch
+             save_strategy="epoch",       # Save a checkpoint at the end of each epoch
+             load_best_model_at_end=True, # Load the best model found during training (based on metric)
+             metric_for_best_model="accuracy", # Metric to determine the best model
+             greater_is_better=True,      # Accuracy should be maximized
+             save_total_limit=1,          # Only keep the best checkpoint
+             # --- Logging ---
+             logging_strategy="steps",
+             logging_steps=50,            # Log metrics every 50 steps
+             report_to="wandb",           # Report metrics to W&B
+             # --- Other ---
+             # seed=args.seed,
+             fp16=torch.cuda.is_available(), # Use mixed precision if GPU available
+             push_to_hub=False,           # Do not push to Hugging Face Hub
+             disable_tqdm=False,          # Show progress bars
+         )
 
         # Initialize Trainer
         trainer = Trainer(
