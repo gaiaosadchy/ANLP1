@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+import math
 
 import numpy as np
 import torch
@@ -31,10 +32,13 @@ logging.basicConfig(
 )
 
 # --- Metrics Calculation ---
-def compute_metrics(p: EvalPrediction):
+def compute_metrics_classification(p: EvalPrediction):
     """Computes accuracy score for model predictions."""
-    preds = np.argmax(p.predictions, axis=1)
-    return {"accuracy": accuracy_score(p.label_ids, preds)}
+    preds_logits = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
+    preds_labels = np.argmax(preds_logits, axis=1)
+    true_labels = p.label_ids
+    acc = accuracy_score(true_labels, preds_labels)
+    return {"accuracy": acc}
 
 # --- Main Script Logic ---
 def main():
@@ -42,15 +46,15 @@ def main():
 
     # --- Required arguments ---
     parser.add_argument(
-        "--do_train", action="store_true", help="Whether to run training."
+        "--do_train",
+        action="store_true", 
+        help="Whether to run training."
     )
     parser.add_argument(
         "--do_predict",
         action="store_true",
         help="Whether to run prediction on the test set.",
     )
-
-    # --- Optional arguments for training ---
     parser.add_argument(
         "--num_train_epochs",
         default=3.0,
@@ -71,20 +75,6 @@ def main():
         help="Batch size per GPU/TPU core/CPU for training and evaluation.",
     )
     parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="./results",
-        help="The output directory where the model predictions and checkpoints will be written.",
-    )
-    parser.add_argument(
-        "--wandb_project",
-        type=str,
-        default="advanced-nlp-ex1-mrpc",
-        help="Weights & Biases project name.",
-    )
-
-    # --- Optional arguments for data handling ---
-    parser.add_argument(
         "--max_train_samples",
         type=int,
         default=-1,
@@ -102,8 +92,6 @@ def main():
         default=-1,
         help="For debugging purposes, truncate the number of prediction examples.",
     )
-
-    # --- Optional arguments for prediction ---
     parser.add_argument(
         "--model_path",
         type=str,
@@ -113,15 +101,21 @@ def main():
     
     # --- Other arguments ---
     parser.add_argument(
-        "--seed", 
-        type=int, 
-        default=42, 
-        help="Random seed for initialization"
+        "--output_dir",
+        type=str,
+        default="./results",
+        help="The output directory where the model predictions and checkpoints will be written.",
+    )
+    parser.add_argument(
+        "--wandb_project",
+        type=str,
+        default="advanced-nlp-ex1-mrpc",
+        help="Weights & Biases project name.",
     )
 
 
     args = parser.parse_args()
-    set_seed(args.seed) # Set seed for reproducibility
+    set_seed(0)
 
     # --- Basic Validation ---
     if not args.do_train and not args.do_predict:
@@ -203,7 +197,7 @@ def main():
                 "epochs": args.num_train_epochs,
                 "batch_size": args.batch_size,
                 "model_name": model_name,
-                "seed": args.seed,
+                # "seed": args.seed,
                 "max_train_samples": args.max_train_samples,
                 "max_eval_samples": args.max_eval_samples,
             }
@@ -215,6 +209,12 @@ def main():
             model_name, config=config
         )
 
+        # --- Calculate steps per epoch ---
+        num_update_steps_per_epoch = math.ceil(len(train_dataset) / args.batch_size)
+        if num_update_steps_per_epoch == 0:
+            num_update_steps_per_epoch = 1 # Avoid division by zero if dataset is tiny/empty
+        logger.info(f"Calculated steps per epoch: {num_update_steps_per_epoch}")
+
         # Training arguments
         training_args = TrainingArguments(
             output_dir=os.path.join(args.output_dir, run_name), # Unique output dir per run
@@ -223,18 +223,19 @@ def main():
             per_device_train_batch_size=args.batch_size,
             per_device_eval_batch_size=args.batch_size,
             # --- Evaluation and Saving Strategy ---
-            evaluation_strategy="epoch", # Evaluate at the end of each epoch
-            save_strategy="epoch",       # Save a checkpoint at the end of each epoch
-            load_best_model_at_end=True, # Load the best model found during training (based on metric)
-            metric_for_best_model="accuracy", # Metric to determine the best model
-            greater_is_better=True,      # Accuracy should be maximized
-            save_total_limit=1,          # Only keep the best checkpoint
+            evaluate_during_training=True,      # Enable evaluation during training
+            eval_steps=num_update_steps_per_epoch, # Evaluate every epoch
+            save_steps=num_update_steps_per_epoch, # Save checkpoint every epoch
+            load_best_model_at_end=True,        # Load the best model found during training
+            metric_for_best_model="accuracy",   # Metric to determine the best model
+            greater_is_better=True,             # Accuracy should be maximized
+            save_total_limit=1,                 # Only keep the best checkpoint
             # --- Logging ---
-            logging_strategy="steps",
+            # logging_strategy="steps",
             logging_steps=50,            # Log metrics every 50 steps
             report_to="wandb",           # Report metrics to W&B
             # --- Other ---
-            seed=args.seed,
+            # seed=args.seed,
             fp16=torch.cuda.is_available(), # Use mixed precision if GPU available
             push_to_hub=False,           # Do not push to Hugging Face Hub
             disable_tqdm=False,          # Show progress bars
@@ -248,7 +249,7 @@ def main():
             eval_dataset=eval_dataset,
             tokenizer=tokenizer,
             data_collator=data_collator,
-            compute_metrics=compute_metrics,
+            compute_metrics=compute_metrics_classification,
         )
 
         # Train the model
@@ -321,7 +322,7 @@ def main():
             args=predict_args,
             tokenizer=tokenizer,
             data_collator=data_collator,
-            compute_metrics=compute_metrics # Optional for prediction, but doesn't hurt
+            compute_metrics=compute_metrics_classification # Optional for prediction, but doesn't hurt
         )
 
         # Run prediction
