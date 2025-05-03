@@ -224,15 +224,16 @@ def main():
             per_device_eval_batch_size=args.batch_size,
             # --- Evaluation and Saving Strategy ---
             do_eval=True,
-            eval_steps=num_update_steps_per_epoch, # Evaluate every epoch
+            # eval_steps=num_update_steps_per_epoch, # Evaluate every epoch
             save_steps=num_update_steps_per_epoch, # Save checkpoint every epoch
+            logging_steps=num_update_steps_per_epoch,
             load_best_model_at_end=True,        # Load the best model found during training
             metric_for_best_model="accuracy",   # Metric to determine the best model
             greater_is_better=True,             # Accuracy should be maximized
             save_total_limit=1,                 # Only keep the best checkpoint
             # --- Logging ---
             # logging_strategy="steps",
-            logging_steps=50,            # Log metrics every 50 steps
+            # logging_steps=50,            # Log metrics every 50 steps
             report_to="wandb",           # Report metrics to W&B
             # --- Other ---
             # seed=args.seed,
