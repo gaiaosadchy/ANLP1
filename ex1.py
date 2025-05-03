@@ -69,6 +69,7 @@ def main():
     do_train=run_args.do_train,                        # from --do_train
     do_predict=run_args.do_predict,                    # from --do_predict
 )
+    # print(training_args)
 
 
 if __name__ == "__main__":
