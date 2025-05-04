@@ -81,20 +81,20 @@ def main():
     run_name = f"mrpc_ep{run_args.num_train_epochs}_lr{run_args.lr}_bs{run_args.batch_size}"
 
     training_args = TrainingArguments(
-    output_dir=os.path.join("results", run_name),
-    num_train_epochs=run_args.num_train_epochs,        
-    learning_rate=run_args.lr,                         
-    per_device_train_batch_size=run_args.batch_size,   
-    # per_device_eval_batch_size=run_args.batch_size,    
-    do_train=run_args.do_train,                     
-    do_predict=run_args.do_predict,           
+        output_dir=os.path.join("results", run_name),
+        num_train_epochs=run_args.num_train_epochs,        
+        learning_rate=run_args.lr,                         
+        per_device_train_batch_size=run_args.batch_size,   
+        # per_device_eval_batch_size=run_args.batch_size,    
+        do_train=run_args.do_train,                     
+        do_predict=run_args.do_predict,           
 
-    eval_strategy="epoch",
-    save_strategy="epoch",
-    logging_strategy="steps",
-    logging_steps=50,           
-    report_to="wandb",   
-    disable_tqdm=False,  
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        logging_strategy="steps",
+        logging_steps=50,           
+        report_to="wandb",   
+        disable_tqdm=False,  
     )
 
     raw_dataset = load_dataset('glue', 'mrpc')
@@ -149,6 +149,20 @@ def main():
 
     if training_args.do_train:
 
+        wandb.login()
+        wandb.init(
+            project=model_args.wandb_project,
+            name=run_name,
+            config={
+                "learning_rate": run_args.lr,
+                "epochs": run_args.num_train_epochs,
+                "batch_size": run_args.batch_size,
+                "model_name": 'bert-base-uncased',
+                "max_train_samples": data_args.max_train_samples,
+                "max_eval_samples": data_args.max_eval_samples,
+            }
+        )
+
         config = AutoConfig.from_pretrained('bert-base-uncased')
         model = AutoModelForSequenceClassification.from_pretrained('bert-base-uncased', config=config)
         data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
@@ -161,20 +175,6 @@ def main():
             compute_metrics=compute_metrics_classification,
             tokenizer=tokenizer,
             data_collator=data_collator,
-        )
-
-        wandb.login()
-        wandb.init(
-            project=model_args.wandb_project,
-            name=run_name,
-            config={
-                "learning_rate": RunArguments.lr,
-                "epochs": RunArguments.num_train_epochs,
-                "batch_size": RunArguments.batch_size,
-                "model_name": 'bert-base-uncased',
-                "max_train_samples": data_args.max_train_samples,
-                "max_eval_samples": data_args.max_eval_samples,
-            }
         )
 
         train_result = trainer.train()
