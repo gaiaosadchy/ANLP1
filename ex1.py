@@ -1,5 +1,19 @@
 from dataclasses import dataclass, field
-from transformers import HfArgumentParser, TrainingArguments
+from transformers import (
+    HfArgumentParser,
+    TrainingArguments, 
+    AutoConfig, AutoTokenizer, 
+    AutoModelForSequenceClassification,
+    EvalPrediction,
+    Trainer,
+    DataCollatorWithPadding,
+)   
+import os
+from datasets import load_dataset
+from sklearn.metrics import accuracy_score
+import wandb
+import numpy as np
+
 
 @dataclass
 class DataTrainingArguments:
@@ -54,22 +68,135 @@ class ModelArguments:
         default=None,
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
     )
+    wandb_project: str = field(
+        default="my-default-project",
+        metadata={"help": "Weights & Biases project name"}
+    )
 
 
 def main():
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, RunArguments))
     model_args, data_args, run_args = parser.parse_args_into_dataclasses()
 
+    run_name = f"mrpc_ep{run_args.num_train_epochs}_lr{run_args.lr}_bs{run_args.batch_size}"
+
     training_args = TrainingArguments(
-    output_dir="./results",
-    num_train_epochs=run_args.num_train_epochs,        # from --num_train_epochs
-    learning_rate=run_args.lr,                         # from --lr
-    per_device_train_batch_size=run_args.batch_size,   # from --batch_size
-    per_device_eval_batch_size=run_args.batch_size,    # from --batch_size
-    do_train=run_args.do_train,                        # from --do_train
-    do_predict=run_args.do_predict,                    # from --do_predict
-)
-    # print(training_args)
+    output_dir=os.path.join("results", run_name),
+    num_train_epochs=run_args.num_train_epochs,        
+    learning_rate=run_args.lr,                         
+    per_device_train_batch_size=run_args.batch_size,   
+    # per_device_eval_batch_size=run_args.batch_size,    
+    do_train=run_args.do_train,                     
+    do_predict=run_args.do_predict,           
+
+    eval_strategy="epoch",
+    save_strategy="epoch",
+    logging_strategy="steps",
+    logging_steps=50,           
+    report_to="wandb",   
+    disable_tqdm=False,  
+    )
+
+    raw_dataset = load_dataset('glue', 'mrpc')
+
+    train_dataset = (
+        raw_dataset["train"].select(range(data_args.max_train_samples))
+        if data_args.max_train_samples != -1 and run_args.do_train
+        else raw_dataset["train"]
+    )
+    eval_dataset = (
+        raw_dataset["validation"].select(range(data_args.max_eval_samples))
+        if data_args.max_eval_samples != -1 and run_args.do_train
+        else raw_dataset["validation"]
+    )
+    predict_dataset = (
+        raw_dataset["test"].select(range(data_args.max_predict_samples))
+        if data_args.max_predict_samples != -1 and run_args.do_predict
+        else raw_dataset["test"]
+    )
+    
+    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+    
+    def preprocess_function(examples):
+        result = tokenizer(examples['sentence1'], examples['sentence2'], max_length=512, truncation=True, padding=False)
+        return result
+    
+    columns_to_remove = ['sentence1', 'sentence2', 'label']
+    train_dataset = train_dataset.map(
+        preprocess_function,
+        batched=True,
+        remove_columns=columns_to_remove + ['idx'] if 'idx' in train_dataset.column_names else columns_to_remove,
+    )
+    eval_dataset = eval_dataset.map(
+        preprocess_function,
+        batched=True,
+        remove_columns=columns_to_remove,
+    )
+    predict_dataset = predict_dataset.map(
+        preprocess_function,
+        batched=True,
+        remove_columns=['sentence1', 'sentence2'],
+    )
+
+    def compute_metrics_classification(p: EvalPrediction):
+        """Computes accuracy score for model predictions."""
+        preds_logits = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
+        preds_labels = np.argmax(preds_logits, axis=1)
+        true_labels = p.label_ids
+        acc = accuracy_score(true_labels, preds_labels)
+        return {"accuracy": acc}
+    
+
+    if training_args.do_train:
+
+        config = AutoConfig.from_pretrained('bert-base-uncased')
+        model = AutoModelForSequenceClassification.from_pretrained('bert-base-uncased', config=config)
+        data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+            compute_metrics=compute_metrics_classification,
+            tokenizer=tokenizer,
+            data_collator=data_collator,
+        )
+
+        wandb.init(
+            project=model_args.wandb_project,
+            name=run_name,
+            config={
+                "learning_rate": RunArguments.lr,
+                "epochs": RunArguments.num_train_epochs,
+                "batch_size": RunArguments.batch_size,
+                "model_name": 'bert-base-uncased',
+                "max_train_samples": data_args.max_train_samples,
+                "max_eval_samples": data_args.max_eval_samples,
+            }
+        )
+
+        train_result = trainer.train()
+        metrics = trainer.evaluate(eval_dataset=eval_dataset)
+        final_val_accuracy = metrics["eval_accuracy"]
+        wandb.log({"final_validation_accuracy": final_val_accuracy})
+        final_model_path = os.path.join(training_args.output_dir, "final_model")
+        trainer.save_model(final_model_path)
+
+        try:
+            with open("res.txt", "a") as f:
+                f.write(
+                    f"Epochs: {run_args.num_train_epochs}, LR: {run_args.lr}, Batch Size: {run_args.batch_size}, "
+                    f"Val Accuracy: {final_val_accuracy:.4f}, "
+                    f"Model Path: {final_model_path}\n"
+                )
+        except Exception as e:
+            print(f"Error writing to file: {e}")
+
+        wandb.finish()
+
+
+
 
 
 if __name__ == "__main__":
