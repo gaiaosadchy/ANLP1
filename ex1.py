@@ -121,21 +121,21 @@ def main():
         result = tokenizer(examples['sentence1'], examples['sentence2'], max_length=512, truncation=True, padding=False)
         return result
     
-    columns_to_remove = ['sentence1', 'sentence2', 'label']
+    text_cols = ['sentence1', 'sentence2']
     train_dataset = train_dataset.map(
         preprocess_function,
         batched=True,
-        remove_columns=columns_to_remove + ['idx'] if 'idx' in train_dataset.column_names else columns_to_remove,
+        remove_columns=text_cols + (['idx'] if 'idx' in train_dataset.column_names else [])
     )
     eval_dataset = eval_dataset.map(
         preprocess_function,
         batched=True,
-        remove_columns=columns_to_remove,
+        remove_columns=text_cols,
     )
     predict_dataset = predict_dataset.map(
         preprocess_function,
         batched=True,
-        remove_columns=['sentence1', 'sentence2'],
+        remove_columns=text_cols + (['label'] if 'label' in predict_dataset.column_names else [])
     )
 
     def compute_metrics_classification(p: EvalPrediction):
