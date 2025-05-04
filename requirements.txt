@@ -1,6 +1,6 @@
 datasets==3.5.1
-numpy==2.2.5
+numpy==1.26.4
 scikit_learn==1.6.1
-torch==2.7.0
+torch==2.5.1
 transformers==4.51.3
 wandb==0.19.10
