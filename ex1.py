@@ -163,6 +163,7 @@ def main():
             data_collator=data_collator,
         )
 
+        wandb.login()
         wandb.init(
             project=model_args.wandb_project,
             name=run_name,
