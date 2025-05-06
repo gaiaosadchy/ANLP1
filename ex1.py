@@ -220,8 +220,10 @@ def main():
 
         output_predict_file = os.path.join(training_args.output_dir, "predictions.txt")
         with open(output_predict_file, "w") as writer:
-            writer.write("\n".join(map(str, preds)))
-            writer.write("\n")
+            for s1, s2, label in zip(test_dataset["sentence1"],
+                                  test_dataset["sentence2"],
+                                  preds):
+                 writer.write(f"{s1}###{s2}###{label}\n")
 
 
 
