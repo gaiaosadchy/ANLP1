@@ -218,10 +218,14 @@ def main():
         predictions = trainer.predict(test_dataset)
         preds = np.argmax(predictions.predictions, axis=1)
 
+        raw_test = raw_dataset["test"].select(
+        range(data_args.max_predict_samples)
+        ) if data_args.max_predict_samples != -1 else raw_dataset["test"]
+
         output_predict_file = os.path.join(training_args.output_dir, "predictions.txt")
         with open(output_predict_file, "w") as writer:
-            for s1, s2, label in zip(test_dataset["sentence1"],
-                                  test_dataset["sentence2"],
+            for s1, s2, label in zip(raw_test["sentence1"],
+                                  raw_test["sentence2"],
                                   preds):
                  writer.write(f"{s1}###{s2}###{label}\n")
 
