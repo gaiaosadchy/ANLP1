@@ -218,9 +218,14 @@ def main():
         predictions = trainer.predict(test_dataset)
         preds = np.argmax(predictions.predictions, axis=1)
 
+        print(f"🔍  got {len(preds)} predictions")             
+        print(f"🔍  first 5 logits: {predictions.predictions[:5]}")
+
         raw_test = raw_dataset["test"].select(
         range(data_args.max_predict_samples)
         ) if data_args.max_predict_samples != -1 else raw_dataset["test"]
+
+        print(f"🔍  got {len(raw_test)} raw examples") 
 
         output_predict_file = os.path.join(training_args.output_dir, "predictions.txt")
         with open(output_predict_file, "w") as writer:
