@@ -187,9 +187,9 @@ def main():
         try:
             with open("res.txt", "a") as f:
                 f.write(
-                    f"Epochs: {run_args.num_train_epochs}, LR: {run_args.lr}, Batch Size: {run_args.batch_size}, "
-                    f"Val Accuracy: {final_val_accuracy:.4f}, "
-                    f"Model Path: {final_model_path}\n"
+                    f"epoch_num: {run_args.num_train_epochs}, lr: {run_args.lr}, batch_size: {run_args.batch_size}, "
+                    f"eval_acc: {final_val_accuracy:.4f}\n"
+                    # f"Model Path: {final_model_path}\n"
                 )
         except Exception as e:
             print(f"Error writing to file: {e}")
