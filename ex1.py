@@ -189,7 +189,6 @@ def main():
                 f.write(
                     f"epoch_num: {run_args.num_train_epochs}, lr: {run_args.lr}, batch_size: {run_args.batch_size}, "
                     f"eval_acc: {final_val_accuracy:.4f}\n"
-                    # f"Model Path: {final_model_path}\n"
                 )
         except Exception as e:
             print(f"Error writing to file: {e}")
@@ -202,7 +201,7 @@ def main():
 
         predict_args = TrainingArguments(
             output_dir=os.path.join(training_args.output_dir, "predict_temp"),
-            # per_device_eval_batch_size=RunArguments.batch_size,
+            # per_device_eval_batch_size=run_args.batch_size,
             report_to="none",
             disable_tqdm=False,
         )
@@ -211,8 +210,7 @@ def main():
             model=model,
             args=predict_args,
             tokenizer=tokenizer,
-            # data_collator=data_collator,
-            compute_metrics=compute_metrics_classification # Optional for prediction, but doesn't hurt
+            compute_metrics=compute_metrics_classification
         )
 
         predictions = trainer.predict(test_dataset)
