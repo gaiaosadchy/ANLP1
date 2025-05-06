@@ -218,7 +218,7 @@ def main():
         predictions = trainer.predict(test_dataset)
         preds = np.argmax(predictions.predictions, axis=1)
 
-        output_predict_file = os.path.join(model_args.output_dir, "predictions.txt")
+        output_predict_file = os.path.join(training_args.output_dir, "predictions.txt")
         with open(output_predict_file, "w") as writer:
             writer.write("\n".join(map(str, preds)))
             writer.write("\n")
