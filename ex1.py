@@ -109,7 +109,7 @@ def main():
         if data_args.max_eval_samples != -1 and run_args.do_train
         else raw_dataset["validation"]
     )
-    predict_dataset = (
+    test_dataset = (
         raw_dataset["test"].select(range(data_args.max_predict_samples))
         if data_args.max_predict_samples != -1 and run_args.do_predict
         else raw_dataset["test"]
@@ -132,10 +132,10 @@ def main():
         batched=True,
         remove_columns=text_cols,
     )
-    predict_dataset = predict_dataset.map(
+    test_dataset = test_dataset.map(
         preprocess_function,
         batched=True,
-        remove_columns=text_cols + (['label'] if 'label' in predict_dataset.column_names else [])
+        remove_columns=text_cols + (['label'] if 'label' in test_dataset.column_names else [])
     )
 
     def compute_metrics_classification(p: EvalPrediction):
@@ -195,8 +195,33 @@ def main():
             print(f"Error writing to file: {e}")
 
         wandb.finish()
+    
+    if training_args.do_predict:
+        model = AutoModelForSequenceClassification.from_pretrained(model_args.model_path)
+        tokenizer = AutoTokenizer.from_pretrained(model_args.model_path)
 
+        predict_args = TrainingArguments(
+            output_dir=os.path.join(model_args.output_dir, "predict_temp"),
+            # per_device_eval_batch_size=RunArguments.batch_size,
+            report_to="none",
+            disable_tqdm=False,
+        )
 
+        trainer = Trainer(
+            model=model,
+            args=predict_args,
+            tokenizer=tokenizer,
+            # data_collator=data_collator,
+            compute_metrics=compute_metrics_classification # Optional for prediction, but doesn't hurt
+        )
+
+        predictions = trainer.predict(test_dataset)
+        preds = np.argmax(predictions.predictions, axis=1)
+
+        output_predict_file = os.path.join(model_args.output_dir, "predictions.txt")
+        with open(output_predict_file, "w") as writer:
+            writer.write("\n".join(map(str, preds)))
+            writer.write("\n")
 
 
 
