@@ -201,7 +201,7 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained(model_args.model_path)
 
         predict_args = TrainingArguments(
-            output_dir=os.path.join(model_args.output_dir, "predict_temp"),
+            output_dir=os.path.join(training_args.output_dir, "predict_temp"),
             # per_device_eval_batch_size=RunArguments.batch_size,
             report_to="none",
             disable_tqdm=False,
