@@ -213,12 +213,12 @@ def main():
             compute_metrics=compute_metrics_classification
         )
 
-        predictions = trainer.predict(test_dataset)
-        test_acc = predictions.metrics["test_accuracy"]
+        test_preds = trainer.predict(test_dataset)
+        test_acc = test_preds.metrics["test_accuracy"]
         wandb.init(project=model_args.wandb_project, name=run_name+"_test", resume="allow")
         wandb.log({"test_accuracy": test_acc})
         wandb.finish()
-        preds = np.argmax(predictions.predictions, axis=1)
+        test_labels = np.argmax(test_preds.predictions, axis=1)
 
         raw_test = raw_dataset["test"].select(
         range(data_args.max_predict_samples)
@@ -228,9 +228,19 @@ def main():
         with open(output_predict_file, "w") as writer:
             for s1, s2, label in zip(raw_test["sentence1"],
                                   raw_test["sentence2"],
-                                  preds):
+                                  test_labels):
                  writer.write(f"{s1}###{s2}###{label}\n")
+        
+        eval_preds = trainer.predict(eval_dataset)
+        eval_acc = eval_preds.metrics["test_accuracy"]
+        eval_labels = np.argmax(eval_preds.predictions, axis=1)
 
+        output_eval_file = os.path.join(training_args.output_dir, "eval_predictions.txt")
+        with open(output_eval_file, "w") as writer:
+            for s1, s2, label in zip(raw_dataset["validation"]["sentence1"],
+                                  raw_dataset["validation"]["sentence2"],
+                                  eval_labels):
+                 writer.write(f"{s1}###{s2}###{label}\n")
 
 
 if __name__ == "__main__":
