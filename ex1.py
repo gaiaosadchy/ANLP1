@@ -214,6 +214,10 @@ def main():
         )
 
         predictions = trainer.predict(test_dataset)
+        test_acc = predictions.metrics["test_accuracy"]
+        wandb.init(project=model_args.wandb_project, name=run_name+"_test", resume="allow")
+        wandb.log({"test_accuracy": test_acc})
+        wandb.finish()
         preds = np.argmax(predictions.predictions, axis=1)
 
         raw_test = raw_dataset["test"].select(
