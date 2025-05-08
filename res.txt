@@ -1,0 +1,3 @@
+epoch_num: 3, lr: 2e-05, batch_size: 16, eval_acc: 0.8358
+epoch_num: 4, lr: 2e-05, batch_size: 32, eval_acc: 0.8480
+epoch_num: 3, lr: 5e-05, batch_size: 16, eval_acc: 0.8578
