@@ -135,7 +135,7 @@ def main():
     test_dataset = test_dataset.map(
         preprocess_function,
         batched=True,
-        remove_columns=text_cols + (['label'] if 'label' in test_dataset.column_names else [])
+        remove_columns=text_cols
     )
 
     def compute_metrics_classification(p: EvalPrediction):
